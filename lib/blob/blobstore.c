@@ -4947,7 +4947,15 @@ spdk_bs_init(struct spdk_bs_dev *dev, struct spdk_bs_opts *o,
 
 	lba = num_md_lba;
 	while (lba < ctx->bs->dev->blockcnt) {
-		lba_count = spdk_min(UINT32_MAX, ctx->bs->dev->blockcnt - lba);
+		/* Clear operations have a uint32_t lba_count maximum, but we
+		 * can't just use UINT32_MAX.  We want the number of blocks
+		 * in each chunk to be evenly aligned on a physical block
+		 * boundary.  Worst case is 512B logical with a 64KiB physical,
+		 * which means it needs to be a multiple of 128.
+		 */
+		const uint32_t max_lba_count = UINT32_MAX - 127;
+
+		lba_count = spdk_min(max_lba_count, ctx->bs->dev->blockcnt - lba);
 		switch (opts.clear_method) {
 		case BS_CLEAR_WITH_UNMAP:
 			/* Trim data clusters */
