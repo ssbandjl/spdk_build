@@ -1,0 +1,37 @@
+qa:
+spdk找不到 ncurses.h, spdk_top.c:52:21: fatal error: ncurses.h: No such file or directory
+yum install ncurses-devel
+
+编译spdk:
+cd build/external/debug/spdk
+./configure --help
+yum install ncurses-devel ncurses
+./configure --prefix="/opt/daos/prereq/debug/spdk" --disable-tests --disable-unit-tests --disable-apps --without-vhost --without-crypto --without-pmdk --without-rbd --with-rdma --without-iscsi-initiator --without-isal --without-vtune --with-shared --enable-examples
+
+Running commands in /home/xb/project/stor/daos/origin/docker/daos
+command:cp -r cache/spdk /home/xb/project/stor/daos/origin/docker/daos/build/external/debug/spdk
+Running commands in /home/xb/project/stor/daos/origin/docker/daos/build/external/debug/spdk
+command:git checkout v21.07
+
+编译选项:
+reqs.define('spdk',
+            retriever=retriever,
+            commands=['./configure --prefix="$SPDK_PREFIX"'                \
+                      ' --disable-tests --disable-unit-tests '             \
+                      ' --disable-apps --without-vhost '                   \
+                      ' --without-crypto --without-pmdk --without-rbd '    \
+                      ' --with-rdma --without-iscsi-initiator '            \
+                      ' --without-isal --without-vtune --with-shared',
+                      'make $JOBS_OPT', 'make install',
+                      'cp -r -P dpdk/build/lib/* "$SPDK_PREFIX/lib"',
+                      'mkdir -p "$SPDK_PREFIX/include/dpdk"',
+                      'cp -r -P dpdk/build/include/* '                     \
+                      '"$SPDK_PREFIX/include/dpdk"',
+                      'mkdir -p "$SPDK_PREFIX/share/spdk"',
+                      'cp -r include scripts "$SPDK_PREFIX/share/spdk"'],
+            headers=['spdk/nvme.h', 'dpdk/rte_eal.h'],
+            extra_include_path=['/usr/include/dpdk',
+                                '$SPDK_PREFIX/include/dpdk',
+                                # debian dpdk rpm puts rte_config.h here
+                                '/usr/include/x86_64-linux-gnu/dpdk'],
+            patch_rpath=['lib'])
