@@ -4,9 +4,10 @@ yum install ncurses-devel
 
 编译spdk:
 cd build/external/debug/spdk
+export CFLAGS='-O0 -g'
 ./configure --help
 yum install ncurses-devel ncurses
-./configure --prefix="/opt/daos/prereq/debug/spdk" --disable-tests --disable-unit-tests --disable-apps --without-vhost --without-crypto --without-pmdk --without-rbd --with-rdma --without-iscsi-initiator --without-isal --without-vtune --with-shared --enable-examples
+./configure --prefix="/opt/daos/prereq/debug/spdk" --enable-debug --disable-tests --disable-unit-tests --disable-apps --without-vhost --without-crypto --without-pmdk --without-rbd --with-rdma --without-iscsi-initiator --without-isal --without-vtune --with-shared --enable-examples
 
 Running commands in /home/xb/project/stor/daos/origin/docker/daos
 command:cp -r cache/spdk /home/xb/project/stor/daos/origin/docker/daos/build/external/debug/spdk
@@ -301,4 +302,7 @@ docker run -it -d --privileged --cap-add=ALL --name spdk -v /root/project/stor/s
 docker start spdk
 docker exec -u root -it spdk bash -c 'cd /home/xb/project/stor/spdk/xb/spdk;exec "${SHELL:-sh}"'
 docker exec -it spdk /bin/bash
+
+大页管理:
+/usr/bin/hugeadm --pool-pages-min DEFAULT:2G -vvv
 

@@ -37,6 +37,23 @@
 #include "spdk/vmd.h"
 #include "spdk/nvme_zns.h"
 #include "spdk/env.h"
+#include "spdk/log.h"
+
+// #ifndef __FILENAME__
+// #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+// #endif
+
+#ifndef FFL
+#define FFL(msg) \
+    fprintf(stdout, "%s", msg); \
+    fprintf(stdout, " %s %s:%d\n", __FUNCTION__, __FILE__, __LINE__);
+#endif
+
+// #ifndef __FFL__
+// #define __FFL__ __FUNCTION__ __FILE__ __LINE__
+// #endif
+
+
 
 struct ctrlr_entry {
 	struct spdk_nvme_ctrlr		*ctrlr;
@@ -435,6 +452,9 @@ int main(int argc, char **argv)
 	 * This library must be initialized first.
 	 *
 	 */
+	// printf("main\n");
+	// FFL("spdk_env_opts_init");
+	SPDK_PRINTF("spdk_env_opts_init\n");
 	spdk_env_opts_init(&opts);
 	opts.name = "hello_world";
 	opts.shm_id = 0;
