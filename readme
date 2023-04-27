@@ -88,9 +88,43 @@ main
   parse_args
   spdk_env_opts_init
   spdk_env_init -> spdk_env_init(const struct spdk_env_opts *opts)
-    build_eal_cmdline
-    rte_eal_init
-    spdk_env_dpdk_post_init
+    if (g_external_init == false) g_external_init=true
+    build_eal_cmdline -> build_eal_cmdline(const struct spdk_env_opts *opts)
+      push_arg -> EAL参数如下:
+      -c 0x1
+      --log-level=lib.eal:6
+      --log-level=lib.cryptodev:5
+      --log-level=user1:6
+      --iova-mode=pa
+      --base-virtaddr=0x200000000000
+      --match-allocations
+      --file-prefix=spdk0
+      --proc-type=auto
+    rte_eal_init -> rte_eal_init(int argc, char **argv) 初始化环境抽象层 (EAL)。 此函数将仅在 MAIN lcore 上执行，并尽快在应用程序的 main() 函数中执行。 它将 WORKER lcores 置于 WAIT 状态, 代码流程: https://blog.csdn.net/armlinuxww/article/details/90288725, https://zhuanlan.zhihu.com/p/439119807
+      rte_eal_get_configuration
+      eal_get_internal_configuration
+      rte_eal_cpu_init
+      eal_parse_args
+      rte_config_init
+      rte_bus_scan
+      is_iommu_enabled
+      rte_eal_iova_mode
+      rte_eal_memory_init ...
+    spdk_env_dpdk_post_init -> spdk_env_dpdk_post_init(bool legacy_mem)
+      pci_env_init() -> pci_env_init(void)
+        TAILQ_FOREACH(driver, &g_pci_drivers, tailq)
+          register_rte_driver -> register_rte_driver(struct spdk_pci_driver *driver) 将 spdk_pci_driver 转换为 rte_pci_driver 并将其注册到 dpdk
+        _pci_env_init -> _pci_env_init(void)
+          scan_pci_bus -> scan_pci_bus(bool delay_init)
+            rte_bus_scan
+            spdk_get_ticks...
+          spdk_process_is_primary 热移除
+      mem_map_init -> mem_map_init(bool legacy_mem)
+        spdk_mem_map_alloc
+        rte_mem_event_callback_register
+        rte_memseg_contig_walk
+      vtophys_init -> vtophys_init(void)
+        vtophys_iommu_init
     dpdk_args = calloc(g_eal_cmdline_argcount, sizeof(char *))  二级指针分配
     rte_eal_init(g_eal_cmdline_argcount, dpdk_args)
     spdk_env_dpdk_post_init
@@ -108,10 +142,11 @@ main
         spdk_mem_map_alloc
   spdk_vmd_init
     spdk_pci_enumerate(spdk_pci_vmd_get_driver(), vmd_enum_cb, &g_vmd_container)
-  spdk_nvme_probe(NULL, NULL, probe_cb, attach_cb, NULL)
+  spdk_nvme_probe(NULL, NULL, probe_cb, attach_cb, NULL) 枚举传输 ID 指示的总线，并在需要时将用户空间 NVMe 驱动程序附加到找到的每个设备。 此函数不是线程安全的，一次只能从一个线程调用，而没有其他线程正在主动使用任何 NVMe 设备。 如果从辅助进程调用，则只会探测已附加到主进程中的用户空间驱动程序的设备。 如果多次调用，则只会报告尚未附加到 SPDK NVMe 驱动程序的设备。 要停止使用控制器并释放其关联资源，请使用 attach_cb() 函数中的 spdk_nvme_ctrlr 实例调用 spdk_nvme_detach(), 发现ssd, 参考: https://zhuanlan.zhihu.com/p/555930316, https://www.cnblogs.com/vlhn/p/7727016.html, proby__by_class_code, Class Code (SPDK_PCI_CLASS_NVME=0x010802)扯上了关系。 全局变量g_nvme_pci_drv就是在L53行定义的，而g_nvme_pci_drv.driver.id_table则是在L38行定义的, 查看内存: lshw -short -C memory, lspci|grep -i non, nvme-cli
     spdk_nvme_trid_populate_transport
     spdk_nvme_probe_async
-    nvme_init_controllers
+    nvme_init_controllers... spdk_pci_enumerate -> rte_pci_probe -> pci_probe_all_drivers -> rte_pci_probe_one_driver -> rte_pci_match
+      if (id_table->class_id != pci_dev->id.class_id...
   hello_world
     spdk_nvme_ctrlr_alloc_io_qpair
     spdk_nvme_ctrlr_map_cmb LBA start  number of LBAs 
@@ -306,3 +341,24 @@ docker exec -it spdk /bin/bash
 大页管理:
 /usr/bin/hugeadm --pool-pages-min DEFAULT:2G -vvv
 
+编译:
+./configure --prefix="/opt/daos/prereq/debug/spdk" --enable-debug --disable-tests --disable-unit-tests --disable-apps --without-vhost --without-crypto --without-pmdk --without-rbd --with-rdma --without-iscsi-initiator --without-isal --without-vtune --with-shared --enable-examples
+  configure -> common.sh -> CONFIG -> CONFIG.sh
+
+autorun.sh -> autobuild.sh -> meson build-tmp
+
+dpdk debug
+dpdkbuild/Makefile
+ifeq ($(CONFIG_DEBUG),y)
+DPDK_OPTS += --buildtype=debug
+
+dpdk/lib/meson.build -> 
+default_cflags += ['-g']
+default_cflags += ['-O0']
+
+sed正则表达式:
+sed -r 's/CONFIG_([[:alnum:]_]+)=(.*)/CONFIG[\1]=\2/g' $rootdir/CONFIG > $rootdir/CONFIG.sh
+
+nvme-cli, 
+https://spdk.io/doc/nvme.html#nvme_cuse
+modprobe cuse, lsmod|grep cuse

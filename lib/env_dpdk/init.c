@@ -577,7 +577,8 @@ spdk_env_init(const struct spdk_env_opts *opts)
 	SPDK_PRINTF("Starting %s / %s initialization...\n", SPDK_VERSION_STRING, rte_version());
 	SPDK_PRINTF("[ DPDK EAL parameters: ");
 	for (i = 0; i < g_eal_cmdline_argcount; i++) {
-		SPDK_PRINTF("%s ", g_eal_cmdline[i]);
+		// SPDK_PRINTF("%s ", g_eal_cmdline[i]);
+		printf("%s\n", g_eal_cmdline[i]);
 	}
 	SPDK_PRINTF("]\n");
 
