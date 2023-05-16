@@ -143,6 +143,7 @@ main
   spdk_vmd_init
     spdk_pci_enumerate(spdk_pci_vmd_get_driver(), vmd_enum_cb, &g_vmd_container)
   spdk_nvme_probe(NULL, NULL, probe_cb, attach_cb, NULL) 枚举传输 ID 指示的总线，并在需要时将用户空间 NVMe 驱动程序附加到找到的每个设备。 此函数不是线程安全的，一次只能从一个线程调用，而没有其他线程正在主动使用任何 NVMe 设备。 如果从辅助进程调用，则只会探测已附加到主进程中的用户空间驱动程序的设备。 如果多次调用，则只会报告尚未附加到 SPDK NVMe 驱动程序的设备。 要停止使用控制器并释放其关联资源，请使用 attach_cb() 函数中的 spdk_nvme_ctrlr 实例调用 spdk_nvme_detach(), 发现ssd, 参考: https://zhuanlan.zhihu.com/p/555930316, https://www.cnblogs.com/vlhn/p/7727016.html, proby__by_class_code, Class Code (SPDK_PCI_CLASS_NVME=0x010802)扯上了关系。 全局变量g_nvme_pci_drv就是在L53行定义的，而g_nvme_pci_drv.driver.id_table则是在L38行定义的
+  spdk_nvme_probe(NULL, NULL, probe_cb, attach_cb, NULL) 枚举传输 ID 指示的总线，并在需要时将用户空间 NVMe 驱动程序附加到找到的每个设备。 此函数不是线程安全的，一次只能从一个线程调用，而没有其他线程正在主动使用任何 NVMe 设备。 如果从辅助进程调用，则只会探测已附加到主进程中的用户空间驱动程序的设备。 如果多次调用，则只会报告尚未附加到 SPDK NVMe 驱动程序的设备。 要停止使用控制器并释放其关联资源，请使用 attach_cb() 函数中的 spdk_nvme_ctrlr 实例调用 spdk_nvme_detach(), 发现ssd, 参考: https://zhuanlan.zhihu.com/p/555930316, https://www.cnblogs.com/vlhn/p/7727016.html, proby__by_class_code, Class Code (SPDK_PCI_CLASS_NVME=0x010802)扯上了关系。 全局变量g_nvme_pci_drv就是在L53行定义的，而g_nvme_pci_drv.driver.id_table则是在L38行定义的, 查看内存: lshw -short -C memory, lspci|grep -i non, nvme-cli
     spdk_nvme_trid_populate_transport
     spdk_nvme_probe_async
     nvme_init_controllers... spdk_pci_enumerate -> rte_pci_probe -> pci_probe_all_drivers -> rte_pci_probe_one_driver -> rte_pci_match
@@ -358,3 +359,7 @@ default_cflags += ['-O0']
 
 sed正则表达式:
 sed -r 's/CONFIG_([[:alnum:]_]+)=(.*)/CONFIG[\1]=\2/g' $rootdir/CONFIG > $rootdir/CONFIG.sh
+
+nvme-cli, 
+https://spdk.io/doc/nvme.html#nvme_cuse
+modprobe cuse, lsmod|grep cuse
