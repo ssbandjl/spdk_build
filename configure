@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
-set -x
+# set -x
 
 trap 'echo -e "\n\nConfiguration failed\n\n" >&2' ERR
 
@@ -644,6 +644,7 @@ if [ "${CONFIG[RDMA]}" = "y" ]; then
 		exit 1
 	fi
 
+	# echo -e "BUILD_CMD:$BUILD_CMD"
 	if ! echo -e '#include <infiniband/verbs.h>\n#include <rdma/rdma_verbs.h>\n' \
 		'int main(void) { return 0; }\n' \
 		| "${BUILD_CMD[@]}" -libverbs -lrdmacm - 2> /dev/null; then

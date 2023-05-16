@@ -1,3 +1,6 @@
+./scripts/setup.sh
+./scripts/setup.sh reset
+
 qa:
 spdk找不到 ncurses.h, spdk_top.c:52:21: fatal error: ncurses.h: No such file or directory
 yum install ncurses-devel
@@ -76,7 +79,7 @@ trap 'set +e; trap - ERR; echo "Error!"; exit 1;' ERR
 
 
 
-参考源码分析: https://blog.csdn.net/wade1010/article/details/128782710
+参考源码分析: https://blog.csdn.net/wade1010/article/details/128782710, https://blog.csdn.net/weixin_44879249/article/details/110920401
 demo: 从hello_world程序来剖析SDPK NVMe用户态驱动，对NVMe盘的初始化、管理和读写操作
 export LD_LIBRARY_PATH=/opt/daos/prereq/debug/spdk/lib:$LD_LIBRARY_PATH
 cd build/examples
@@ -148,10 +151,15 @@ main
     spdk_nvme_probe_async
     nvme_init_controllers... spdk_pci_enumerate -> rte_pci_probe -> pci_probe_all_drivers -> rte_pci_probe_one_driver -> rte_pci_match
       if (id_table->class_id != pci_dev->id.class_id...
-  hello_world
-    spdk_nvme_ctrlr_alloc_io_qpair
-    spdk_nvme_ctrlr_map_cmb LBA start  number of LBAs 
-    spdk_nvme_ns_cmd_write
+  hello_world -> hello_world(void)
+    spdk_nvme_ctrlr_alloc_io_qpair 分配一个nvme queue pair作为该IO Channel的实际对象, 分配一个 I/O qpair，我们可以使用它来向控制器上的命名空间提交读/写请求。 NVMe 控制器通常支持每个控制器的许多 qpairs。 为控制器分配的任何 I/O qpair 都可以将 I/O 提交到该控制器上的任何命名空间。
+SPDK NVMe 驱动程序不为 qpair 访问提供同步 - 应用程序必须确保只有一个线程将 I/O 提交给 qpair，并且同一线程还必须检查该 qpair 上的完成。 这通过使所有 I/O 操作完全无锁来实现极其高效的 I/O 处理, 分配一个 I/O 队列对（提交和完成队列）。 默认情况下，此函数还执行新创建的 qpair 所需的任何连接活动。 为避免这种行为，用户应将 opts 结构中的 create_only 标志设置为 true。 每个队列对一次只能在一个线程中使用（用户必须强制执行互斥）
+    spdk_nvme_ctrlr_map_cmb LBA start  number of LBAs, 映射先前保留的控制器内存缓冲区，以便它的数据对 CPU 可见。 此操作并不总是可行的, 从控制器中申请内存, 设备内存(DRAM), Controller Memory Buffer(CMB)，可用于保存SQ和CQ队列元素，也可用于App buf(借助spdk_nvme_ctrlr_map_cmb函数)，从而节省了部分DMA操作(从主存拷贝数据到控制器)，降低了PCIe switch的路由开销, 如果ctrlr中的buf不够则从主机内存中去分配
+    spdk_zmalloc 根据给定的 dma_flg 分配 dma/可共享内存。 它是一个具有给定大小、对齐方式和套接字 ID 的内存缓冲区。 此外，缓冲区将被清零
+    snprintf(sequence.buf, 0x1000, "%s", "Hello world!\n") 将字符串打印到buf上(4KB)
+    spdk_nvme_ns_cmd_write -> spdk_nvme_ns_cmd_write(struct spdk_nvme_ns *ns
+    _nvme_ns_cmd_rw -> _nvme_ns_cmd_rw(struct spdk_nvme_ns *ns... SPDK_NVME_OPC_WRITE
+    nvme_qpair_submit_request
     write_complete
     spdk_nvme_qpair_process_completions
   spdk_vmd_fini
@@ -363,3 +371,4 @@ sed -r 's/CONFIG_([[:alnum:]_]+)=(.*)/CONFIG[\1]=\2/g' $rootdir/CONFIG > $rootdi
 nvme-cli, 
 https://spdk.io/doc/nvme.html#nvme_cuse
 modprobe cuse, lsmod|grep cuse
+
