@@ -159,7 +159,7 @@ SPDK NVMe 驱动程序不为 qpair 访问提供同步 - 应用程序必须确保
     snprintf(sequence.buf, 0x1000, "%s", "Hello world!\n") 将字符串打印到buf上(4KB)
     spdk_nvme_ns_cmd_write -> spdk_nvme_ns_cmd_write(struct spdk_nvme_ns *ns
     _nvme_ns_cmd_rw -> _nvme_ns_cmd_rw(struct spdk_nvme_ns *ns... SPDK_NVME_OPC_WRITE
-    nvme_qpair_submit_request
+    nvme_qpair_submit_request -> qpair_submit_request -> nvme_rdma_qpair_submit_request -> nvme_rdma_qpair_queue_send_wr -> spdk_rdma_qp_queue_send_wrs -> ibv_wr_rdma_write
     write_complete
     spdk_nvme_qpair_process_completions
   spdk_vmd_fini
